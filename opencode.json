@@ -1,0 +1,31 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["AGENTS.md"],
+  "permission": {
+    "edit": "ask",
+    "bash": {
+      "git commit *": "deny",
+      "git push *": "deny",
+      "git add *": "deny",
+      "git pull *": "deny",
+      "git reset *": "deny",
+      "*": "ask"
+    },
+    "read": "allow",
+    "todowrite": "allow"
+  },
+  "mcp": {
+    "jetbrains": {
+      "type": "remote",
+      "url": "http://127.0.0.1:64462/stream",
+      "headers": {
+        "IJ_MCP_SERVER_PROJECT_PATH": "C:/Users/Alexander/PhoS"
+      }
+    },
+    "hf-mcp-server": {
+      "type": "remote",
+      "url": "https://huggingface.co/mcp?login",
+      "enabled": true
+    }
+  }
+}

@@ -54,9 +54,8 @@ Android-приложение: пользователь открывает пап
 PhoS/
   ml/                          # Python, source of truth для модели
     pyproject.toml (uv)        # зависимости, ruff, pytest
-    data/ (DVC)                # Flickr30k + COCO + ~200 своих фото с подписями RU/EN
-    experiments/               # notebooks + скрипты сравнения моделей
-    src/phos/                  # dataset.py, train.py, eval.py, export_onnx.py
+    utility/                   # Python-пакет (__init__.py): код для работы, напр. utility/data/ — файлы обработки данных
+    experiments/               # журнал экспериментов: папки 0x_name (номер + что происходило), см. §6
     artifacts/                 # model.onnx + tokenizer.json + model_card.json
     scripts/export_to_app.py   # копирует артефакт в app/src/main/assets/
   app/                         # Android, Kotlin + Compose (НЕ back/front, а слои)
@@ -68,7 +67,8 @@ PhoS/
   docs/                        # вся документация в одном месте
     architecture.md            # ссылка на этот AGENTS.md + схемы
     ml-experiments.md          # ссылки на MLflow runs
-    ADRs/
+    adr/
+    agents/                    # issue-tracker.md, domain.md (setup-matt-pocock-skills)
   .github/workflows/           # ci-ml.yml (ruff+pytest+export smoke), ci-app.yml (assembleDebug+unit tests)
 ```
 
@@ -80,9 +80,19 @@ PhoS/
 2. `Multilingual-CLIP (M-CLIP, LaBSE XLM-R)` — лучший русский из коробки, требует квантования.
 3. `MobileSigLIP / SigLIP-B/16 multilingual` — фаворит, баланс точность/размер.
 
+### Данные (v1)
+- Источник: `ChristophSchuhmann/MS_COCO_2017_URL_TEXT` (591,753 подписи, `URL` + `TEXT`, ~118K изображений по URL, ~5 подписей на картинку). Чтение: `pl.read_parquet('hf://datasets/ChristophSchuhmann/MS_COCO_2017_URL_TEXT/mscoco.parquet')` — поларс с нативным `hf://`, данные не скачиваются в репо, папки `ml/data/` нет.
+- Flickr30k — отложен из скоупа v1 (скриптовый лоадер мёртв в `datasets` v3, единственный сплит); вернуть можно позже как eval-бенчмарк.
+- ~200 своих фото с RU/EN-подписями — Этап 4, хранение через DVC (DagsHub).
+
 Пайплайн: датасет -> обучение/файнтюн на Kaggle/Colab -> логи в MLflow -> выбор версии -> `torch -> onnx (opset 17) -> quantize dynamic INT8` -> проверка загрузки на CPU локально.
 
 Цель размера: ужаться до 40-60Мб, чтобы APK ~120-140Мб влез в лимит Play Market (150Мб).
+
+Журнал экспериментов: каждый эксперимент — папка `ml/experiments/0x_name` (сквозной номер `01`, `02`... + короткое имя на латинице snake_case, что происходит). Внутри папки — ноутбук/скрипты и выходы; запуски логируются в MLflow. Индекс экспериментов ведётся в этой секции:
+
+| № | Папка | Что происходит | Итог |
+|---|-------|----------------|------|
 
 ## 7. Mobile v1: скоуп
 - SAF выбор папки + `READ_MEDIA_IMAGES` (Android 13+), сетка `LazyVerticalGrid + Coil`.
@@ -92,16 +102,17 @@ PhoS/
 
 ## 8. Тулинг
 - Python-зависимости: `uv + pyproject.toml` (современно, быстро). `conda` — только если понадобится CUDA локально.
-- MLOps: `MLflow (local + ui)` + `DVC` для датасетов. Бэкенд MLflow при желании — HF Spaces бесплатно.
+- MLOps: `DagsHub` — один репозиторий = git + MLflow (params/metrics/артефакты) + DVC (крупные файлы: срезы датасетов, чекпоинты, экспорты), один эксперимент не надо собирать по кусочкам. Токен — `DAGSHUB_TOKEN` в `.env` (в `.gitignore`), на Colab — Colab Secrets. Подключение — при первом эксперименте (Этап 2). В `app/` не попадает (ADR-3).
 - CI/CD: GitHub Actions, два воркфлоу (ml и app).
 - Android: Gradle KTS, ONNX Runtime Mobile (`ai.onnxruntime:onnxruntime-android`), Room, WorkManager, Coil, Compose + MVVM.
+- JDK: системный `java` в PATH отсутствует. Android SDK — `C:\Users\Alexander\AppData\Local\Android\Sdk`. Для сборки `app/` использовать JBR Android Studio (`C:\Users\Alexander\AppData\Local\Programs\Android Studio\jbr`, OpenJDK 25) либо отдельный JDK 17/21 с указанием `org.gradle.java.home` в `gradle.properties` (CLI-сборки).
 
 ## 9. Роадмап
 - Этап 0: скелет (uv init, Compose template, Actions green).
 - Этап 1: приложение без AI (папка -> сетка, поиск-заглушка по имени).
-- Этап 2: ML-эксперименты в Colab (таблица MLflow + выбранная модель).
+- Этап 2: ML-эксперименты в Colab (DagsHub: MLflow + DVC, сравнение моделей, выбор версии).
 - Этап 3: связка (запрос RU/EN -> офлайн топ-N).
-- Этап 4: MLOps и полировка (Qdrant-бенч, DVC, README-демо, иконка, темная тема).
+- Этап 4: MLOps и полировка (Qdrant-бенч, свои фото RU/EN через DVC, README-демо, иконка, темная тема).
 - Этап 5+: captioning, фильтры, обновления модели OTA.
 
 ## 10. Правила для агента
@@ -121,3 +132,14 @@ PhoS/
   2. После сборки — `jetbrains_build_project`, разобрать все `errors`, не только первый.
   3. Не отмечать задачу `completed` пока есть ошибки уровня `error`. `warning` допустимы, но перечислить их в ответе.
 - Skills проекта (`skill` tool): `phos-ml-export` — только для экспорта CLIP/SigLIP в ONNX; `phos-offline-check` — только для проверки офлайн-сборки Android. Plugins не используем в v1 (решение автора: без JS/TS).
+- Сторонние скиллы из `github.com/mattpocock/skills` (MIT), установлены вручную в `.opencode/skills/` без Node/npx: `tdd` (red-green-refactor под п. §10 про тесты), `grilling` (интервью по дизайну до кода), `writing-for-agents` (написание доков/скиллов), `setup-matt-pocock-skills` (разовая настройка репо, правит этот файл и `docs/agents/`).
+
+## 12. Agent skills
+
+### Issue tracker
+
+Тикеты — локальные markdown-файлы в `.scratch/<feature>/` этого репо (без внешних CLI). See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` + `docs/adr/` в корне. See `docs/agents/domain.md`.

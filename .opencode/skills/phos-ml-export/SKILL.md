@@ -12,7 +12,7 @@ description: Export CLIP/SigLIP to ONNX for PhoS Android offline search. Use ONL
 
 ## Шаги
 1. Сверься с `AGENTS.md` разделы 4 и 6 (кандидаты: TinyCLIP, M-CLIP, MobileSigLIP).
-2. Экспорт: `torch -> onnx (opset 17) -> quantize dynamic INT8` через `ml/src/phos/export_onnx.py`.
+2. Экспорт: `torch -> onnx (opset 17) -> quantize dynamic INT8` через `ml/utility/export_onnx.py`.
 3. Проверь связку из 3 файлов в `ml/artifacts/`: `model.onnx + tokenizer.json + model_card.json {model_name, version, vector_dim, tokenizer_hash}`.
 4. CPU smoke-check: загрузить `.onnx` через ONNX Runtime на CPU, прогнать 1 текст RU + 1 текст EN + 1 dummy image.
 5. Любое изменение `vector_dim` или токенизатора = bump `version` в `model_card.json` + напомнить про миграцию Room в `app/`.

@@ -93,6 +93,7 @@ PhoS/
 
 | № | Папка | Что происходит | Итог |
 |---|-------|----------------|------|
+| 00 | ml/experiments/00_dataset_prepare.ipynb | COCO -> датасет ms-coco2017-en-ru: NLLB-1.3B перевод (дедуп), без сплита | датасет: jstnoname/ms-coco2017-en-ru; MLflow->DagsHub; спека: .scratch/dataset_translate/spec.md |
 
 ## 7. Mobile v1: скоуп
 - SAF выбор папки + `READ_MEDIA_IMAGES` (Android 13+), сетка `LazyVerticalGrid + Coil`.

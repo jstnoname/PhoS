@@ -27,5 +27,11 @@
       "url": "https://huggingface.co/mcp?login",
       "enabled": true
     }
+  },
+  "formatter": {
+    "ruff": {
+      "command": ["uv", "run", "--project", "ml", "ruff", "format", "$FILE"],
+      "extensions": [".py", ".pyi", ".ipynb"]
+    }
   }
 }
